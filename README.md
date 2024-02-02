@@ -46,3 +46,6 @@ go to the ansible directory and run the playbook: ansible-playbook setup.yaml
 ```
   ansible-playbook setup.yaml
 ```
+
+After ansible is finish
+take the ip address from nginx_public_ip_address and connect via http.
