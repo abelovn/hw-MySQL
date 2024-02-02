@@ -47,5 +47,20 @@ go to the ansible directory and run the playbook: ansible-playbook setup.yaml
   ansible-playbook setup.yaml
 ```
 
+
+PS
+
+If there is no module for Ansible installed, install it
+
+
+For example it maybe needed follow module
+```
+ ansible-galaxy collection install community.proxysql
+```
+
+
 After ansible is finish
 take the ip address from nginx_public_ip_address and connect via http.
+
+
+
