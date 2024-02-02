@@ -1,0 +1,92 @@
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+    use: "systemd"
+
+- name: Install Percona Repo Package
+  ansible.builtin.apt:
+    deb: "https://repo.percona.com/apt/percona-release_latest.generic_all.deb"
+
+- name: Enable Percona Repositories
+  ansible.builtin.shell: |
+    percona-release enable-only pxc-80 release
+    percona-release enable tools release
+
+- name: Install Packages
+  ansible.builtin.apt: 
+    name: "{{ app_packages }}"
+    state: latest
+    update_cache: true
+
+- name: Install pymysql via pip
+  ansible.builtin.pip:
+    name: pymysql
+    state: latest
+
+- name: Add backends to ProxySQL
+  community.proxysql.proxysql_backend_servers:
+    hostname: "{{ hostvars[item].ansible_host }}"
+    comment: "{{ item }}"
+    hostgroup_id: "0"
+    login_user: "admin"
+    login_password: "admin"
+  loop: "{{ groups.db }}"
+
+- name: Configure monitor
+  community.proxysql.proxysql_global_variables:
+    login_user: "admin"
+    login_password: "admin"
+    variable: "mysql-monitor_username"
+    value: "monitor"
+
+- name: Configure monitor
+  community.proxysql.proxysql_global_variables:
+    login_user: "admin"
+    login_password: "admin"
+    variable: "mysql-monitor_password"
+    value: "monitor"
+
+- name: Configure user
+  community.proxysql.proxysql_mysql_users:
+    backend: true
+    frontend: true
+    username: "{{ wp_db_user }}"
+    password: "{{ wp_db_pass }}"
+    login_user: "admin"
+    login_password: "admin"
+
+- name: Configure PHP 
+  ansible.builtin.lineinfile:
+    path: "/etc/php/8.1/fpm/php.ini"
+    insertafter: ";cgi.fix_pathinfo.*"
+    line: "cgi.fix_pathinfo=0"
+  notify: restart php-fpm
+
+- name: Configure nginx for wordpress
+  ansible.builtin.copy:
+    src: "wp.conf"
+    dest: "/etc/nginx/conf.d/wp.conf"
+    owner: www-data
+    group: www-data
+  notify: nginx reload
+
+- name: Remove default config
+  ansible.builtin.file:
+    path: "/etc/nginx/sites-enabled/default"
+    state: absent
+  notify: nginx reload
+
+- name: Download and unzip wordpress files
+  ansible.builtin.unarchive:
+    src: https://wordpress.org/latest.zip
+    dest: /var/www/
+    remote_src: yes
+    owner: www-data
+    group: www-data
+    
+- name: Configure wordpress
+  ansible.builtin.template:
+    src: "wp-config.php.j2"
+    dest: "/var/www/wordpress/wp-config.php"
+    owner: "www-data"
+    group: "www-data"

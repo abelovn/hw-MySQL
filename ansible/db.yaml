@@ -1,0 +1,72 @@
+- name: Set hostname
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+    use: "systemd"
+
+- name: Install Percona Repo Package
+  ansible.builtin.apt:
+    deb: "https://repo.percona.com/apt/percona-release_latest.generic_all.deb"
+
+- name: Enable Percona Repositories
+  ansible.builtin.shell: |
+    percona-release enable-only pxc-80 release
+    percona-release enable tools release
+
+- name: Install prerequisites
+  ansible.builtin.apt:
+    name: "{{ db_packages }}"
+    state: latest
+    update_cache: true
+
+- name: Install pymysql via pip
+  ansible.builtin.pip:
+    name: pymysql
+    state: latest
+
+#- name: Install XtraDB Package
+#  ansible.builtin.apt:
+#    name: "percona-xtradb-cluster"
+#    update_cache: true
+
+- name: Configure Percona Cluster Config
+  ansible.builtin.template:
+    src: "mysqld.cnf.j2"
+    dest: "/etc/mysql/mysql.conf.d/mysqld.cnf"
+
+- name: Start bootstrap on db0
+  ansible.builtin.systemd:
+    name: "mysql@bootstrap"
+    state: started
+  when: inventory_hostname == 'db0'
+
+- name: Start mysql on other nodes
+  ansible.builtin.systemd:
+    name: "mysql"
+    state: started
+  when: inventory_hostname != 'db0'
+
+- name: Configure user for monitoring
+  community.mysql.mysql_user:
+    name: "monitor"
+    host: "192.168.0.0/255.255.0.0"
+    password: "monitor"
+    priv: "*.*:USAGE,REPLICATION CLIENT"
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+  run_once: true
+    
+- name: Create Database for Wordpress
+  community.mysql.mysql_db:
+    name: "wordpress"
+    login_unix_socket: /run/mysqld/mysqld.sock
+  run_once: true
+
+- name: Create database user using hashed password with all database privileges
+  community.mysql.mysql_user:
+    name: "{{ wp_db_user }}"
+    host: "192.168.0.0/255.255.0.0"
+    password: "{{ wp_db_pass }}"
+    priv: "{{ wp_db_name }}.*:ALL"
+    state: present
+    login_unix_socket: /run/mysqld/mysqld.sock
+  run_once: true
