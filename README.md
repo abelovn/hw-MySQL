@@ -1,7 +1,7 @@
 # hw-mysql
+The database cluster is built using Percona XtraDB Cluster. 
 
 
-Objective:
 
 
 
