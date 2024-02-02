@@ -1,0 +1,18 @@
+[lb]
+%{ for index_lb, lb_ip in lb_ip_address_list ~}
+${lb_vm_names[index_lb]}	ansible_host=${lb_ip}	
+%{ endfor ~}
+
+[db]
+%{ for index_db, db_ip in db_ip_address_list ~}
+${db_vm_names[index_db]}	ansible_host=${db_ip}	
+%{ endfor ~}
+
+[app]
+%{ for index_app, app_ip in app_ip_address_list ~}
+${app_vm_names[index_app]}	ansible_host=${app_ip}	
+%{ endfor ~}
+
+[all:vars]
+public_ip=${lb_nat_ip_address_list[0]}
+ansible_user=ubuntu
